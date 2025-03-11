@@ -93,10 +93,10 @@ jobs:
       run: make -j -O all
     # TODO: python3 does not work here
 
-  make-everything-on-docker:
-    name: Make everything of selfie on docker
-    runs-on: ubuntu-latest
-    if: ${{ ((github.event_name != 'workflow_dispatch') || (github.event.inputs.rundocker == 'true')) && (((!github.event.repository.private) || ((github.ref == 'refs/heads/main') && (github.event_name != 'schedule'))) || (github.event_name == 'workflow_dispatch')) }}
+  #make-everything-on-docker:
+  #  name: Make everything of selfie on docker
+  #  runs-on: ubuntu-latest
+  #  if: ${{ ((github.event_name != 'workflow_dispatch') || (github.event.inputs.rundocker == 'true')) && (((!github.event.repository.private) || ((github.ref == 'refs/heads/main') && (github.event_name != 'schedule'))) || (github.event_name == 'workflow_dispatch')) }}
 
     # usage: optional run argument --platform=linux/amd64 or --platform=linux/arm64
     #
@@ -105,28 +105,28 @@ jobs:
     # - run interactive:    docker run -it cksystemsteaching/selfie
     # - run on my selfie:   docker run -it -v /myselfie:/opt/myselfie cksystemsteaching/selfie
 
-    steps:
-    - name: Checkout selfie
-      uses: actions/checkout@v4
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v3
-      with:
-        platforms: all
-    - name: Set up Docker Buildx
-      id: buildx
-      uses: docker/setup-buildx-action@v3
-    - name: Build docker images
-      run: |
-        # TODO: build single multi-platform image even though arm64 does not support 32-bit tools
-        docker buildx build --platform=linux/arm64 --target=selfieall --load -t cksystemsteaching/selfie:arm64 .
-        docker buildx build --platform=linux/amd64 --target=selfieeverything --load -t cksystemsteaching/selfie:amd64 -t cksystemsteaching/selfie:latest .
-    - name: Make everything
-      run: |
-        # TODO: emulated arm64 "make -j -O all", too slow for now, skipping
-        docker run cksystemsteaching/selfie:amd64 make -j -O everything
-        docker run cksystemsteaching/selfie:latest make pythons
-    - name: Deploy docker image
-      if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'cksystemsteaching/selfie' }}
-      run: |
-        echo '${{ secrets.DOCKERHUB_PASSWORD }}' | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
-        docker push -a cksystemsteaching/selfie
+  #  steps:
+  #  - name: Checkout selfie
+  #    uses: actions/checkout@v4
+  #  - name: Set up QEMU
+  #    uses: docker/setup-qemu-action@v3
+  #    with:
+  #      platforms: all
+  #  - name: Set up Docker Buildx
+  #    id: buildx
+  #    uses: docker/setup-buildx-action@v3
+  #  - name: Build docker images
+  #    run: |
+  #      # TODO: build single multi-platform image even though arm64 does not support 32-bit tools
+  #      docker buildx build --platform=linux/arm64 --target=selfieall --load -t cksystemsteaching/selfie:arm64 .
+  #      docker buildx build --platform=linux/amd64 --target=selfieeverything --load -t cksystemsteaching/selfie:amd64 -t cksystemsteaching/selfie:latest .
+  #  - name: Make everything
+  #    run: |
+      # TODO: emulated arm64 "make -j -O all", too slow for now, skipping
+  #      docker run cksystemsteaching/selfie:amd64 make -j -O everything
+  #      docker run cksystemsteaching/selfie:latest make pythons
+  #  - name: Deploy docker image
+  #    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'cksystemsteaching/selfie' }}
+  #    run: |
+  #      echo '${{ secrets.DOCKERHUB_PASSWORD }}' | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
+  #      docker push -a cksystemsteaching/selfie
