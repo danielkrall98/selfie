@@ -147,6 +147,7 @@ char* store_character(char* s, uint64_t i, char c);
 
 uint64_t is_letter(char c);
 uint64_t is_digit(char c);
+uint64_t is_hexchar();
 
 char*    string_alloc(uint64_t l);
 uint64_t string_length(char* s);
@@ -2838,6 +2839,15 @@ uint64_t is_digit(char c) {
     return 0;
 }
 
+uint64_t is_hexchar() {
+  if (is_digit(character))
+    return 1;
+  else if (is_letter(character))
+    return 1;
+  else
+    return 0;
+}
+
 char* string_alloc(uint64_t l) {
   // allocates zeroed memory for a string of l characters
   // plus a null terminator aligned to word size
@@ -2927,6 +2937,37 @@ uint64_t atoi(char* s) {
   // load character (one byte) at index i in s from memory requires
   // bit shifting since memory access can only be done at word granularity
   c = load_character(s, i);
+
+  // Hexadecimal integer literals
+  if (c == 'x') {
+    i = i + 1;
+
+    c = load_character(s, i);
+
+    // loop until s is terminated
+    while (c != 0) {
+      if (c >= 'A')
+        if (c <= 'F')
+          // offset by ASCII code of '7' (which is 55)
+          c = c - '7';
+
+      if (c >= 'a')
+        if (c <= 'f')
+          // offset by ASCII code of 'C' (which is 67)
+          c = c - 'C';
+
+      if (c >= '0')
+        if (c <= '9')
+          c = c - '0';
+
+      n = n * 16 + c;
+      i = i + 1;
+
+      c = load_character(s, i);
+    }
+
+    return n;
+  }
 
   // only used by console argument scanner
   if (c == '-') {
@@ -3794,32 +3835,48 @@ void get_symbol() {
 
         symbol = identifier_or_keyword();
       } else if (is_digit(character)) {
-        if (character == '0') {
-          // 0 is 0, not 00, 000, etc.
+        // accommodate integer and null for termination
+        integer = string_alloc(MAX_INTEGER_LENGTH);
+
+        i = 0;
+
+        while (is_digit(character)) {
+          if (i >= MAX_INTEGER_LENGTH) {
+            if (integer_is_signed)
+              syntax_error_message("signed integer out of bound");
+            else
+              syntax_error_message("unsigned integer out of bound");
+
+            exit(EXITCODE_SCANNERERROR);
+          }
+
+          store_character(integer, i, character);
+
+          i = i + 1;
+
           get_character();
 
-          literal = 0;
-        } else {
-          // accommodate integer and null for termination
-          integer = string_alloc(MAX_INTEGER_LENGTH);
+          // Hexadecimal integer literals
+          if (character == 'x') {
+            if (load_character(integer, 0) == '0') {
+              store_character(integer, 0, character);
 
-          i = 0;
-
-          while (is_digit(character)) {
-            if (i >= MAX_INTEGER_LENGTH) {
-              if (integer_is_signed)
-                syntax_error_message("signed integer out of bound");
-              else
-                syntax_error_message("unsigned integer out of bound");
-
-              exit(EXITCODE_SCANNERERROR);
+              get_character();
             }
 
-            store_character(integer, i, character);
+            while (is_hexchar()) {
+              if ((i - 1) >= 16) {
+                syntax_error_message("hexadecimal integer out of target bound");
 
-            i = i + 1;
+                exit(EXITCODE_SCANNERERROR);
+              }
 
-            get_character();
+              store_character(integer, i, character);
+
+              i = i + 1;
+
+              get_character();
+            }
           }
 
           store_character(integer, i, 0); // null-terminated string
