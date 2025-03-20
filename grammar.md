@@ -10,26 +10,30 @@ C\* is a tiny subset of the programming language C. C\* features global variable
 
 C\* Keywords: `uint64_t`, `void`, `sizeof`, `if`, `else`, `while`, `return`
 
-C\* Symbols: `integer`, `character`, `string`, `identifier`, `,`, `;`, `(`, `)`, `{`, `}`, `+`, `-`, `*`, `/`, `%`, `=`, `==`, `!=`, `<`, `>`, `<=`, `>=`, `...`
+C\* Symbols: `integer`, `hexadecimal`, `character`, `string`, `identifier`, `,`, `;`, `(`, `)`, `{`, `}`, `+`, `-`, `*`, `/`, `%`, `=`, `==`, `!=`, `<`, `>`, `<=`, `>=`, `...`
 
 with:
 
 ```
-integer    = digit { digit } .
+integer     = digit { digit } .
 
-character  = "'" printable_character "'" .
+hexadecimal = "0x" digit | hex_letter { digit | letter_hex } .
 
-string     = """ { printable_character } """ .
+character   = "'" printable_character "'" .
 
-identifier = letter { letter | digit | "_" } .
+string      = """ { printable_character } """ .
+
+identifier  = letter { letter | digit | "_" } .
 ```
 
 and:
 
 ```
-digit  = "0" | ... | "9" .
+digit      = "0" | ... | "9" .
 
-letter = "a" | ... | "z" | "A" | ... | "Z" .
+letter     = "a" | ... | "z" | "A" | ... | "Z" .
+
+letter_hex = "a" | ... | "f" | "A" | ... | "F" .
 ```
 
 C\* Grammar:
