@@ -465,14 +465,16 @@ uint64_t SYM_LT           = 25; // <
 uint64_t SYM_LEQ          = 26; // <=
 uint64_t SYM_GT           = 27; // >
 uint64_t SYM_GEQ          = 28; // >=
-uint64_t SYM_ELLIPSIS     = 29; // ...
+uint64_t SYM_BSL          = 29; // <<
+uint64_t SYM_BSR          = 30; // >>
+uint64_t SYM_ELLIPSIS     = 31; // ...
 
 // symbols for bootstrapping
 
-uint64_t SYM_INT      = 30; // int
-uint64_t SYM_CHAR     = 31; // char
-uint64_t SYM_UNSIGNED = 32; // unsigned
-uint64_t SYM_CONST    = 33; // const
+uint64_t SYM_INT      = 32; // int
+uint64_t SYM_CHAR     = 33; // char
+uint64_t SYM_UNSIGNED = 34; // unsigned
+uint64_t SYM_CONST    = 35; // const
 
 uint64_t* SYMBOLS; // strings representing symbols
 
@@ -541,6 +543,8 @@ void init_scanner () {
   *(SYMBOLS + SYM_LEQ)          = (uint64_t) "<=";
   *(SYMBOLS + SYM_GT)           = (uint64_t) ">";
   *(SYMBOLS + SYM_GEQ)          = (uint64_t) ">=";
+  *(SYMBOLS + SYM_BSL)          = (uint64_t) "<<";
+  *(SYMBOLS + SYM_BSR)          = (uint64_t) ">>";    
   *(SYMBOLS + SYM_ELLIPSIS)     = (uint64_t) "...";
 
   *(SYMBOLS + SYM_INT)      = (uint64_t) "int";
@@ -4023,6 +4027,10 @@ void get_symbol() {
           get_character();
 
           symbol = SYM_LEQ;
+        } else if (character == CHAR_LT) {
+          get_character();
+
+          symbol = SYM_BSL;
         } else
           symbol = SYM_LT;
       } else if (character == CHAR_GT) {
@@ -4032,6 +4040,10 @@ void get_symbol() {
           get_character();
 
           symbol = SYM_GEQ;
+        } else if (character == CHAR_GT) {
+          get_character();
+
+          symbol = SYM_BSR;
         } else
           symbol = SYM_GT;
       } else if (character == CHAR_DOT) {
@@ -4311,6 +4323,10 @@ uint64_t is_comparison() {
   else if (symbol == SYM_LEQ)
     return 1;
   else if (symbol == SYM_GEQ)
+    return 1;
+  else if (symbol == SYM_BSL)
+    return 1;
+  else if (symbol == SYM_BSR)
     return 1;
   else
     return 0;
