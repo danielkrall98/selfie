@@ -473,14 +473,17 @@ uint64_t SYM_BSR          = 30; // >>
 uint64_t SYM_AND          = 31; // &
 uint64_t SYM_OR           = 32; // |
 uint64_t SYM_XORI         = 33; // ~
-uint64_t SYM_ELLIPSIS     = 34; // ...
+uint64_t SYM_LOG_AND      = 34; // &&
+uint64_t SYM_LOG_OR       = 35; // ||
+uint64_t SYM_LOG_NOT      = 36; // !
+uint64_t SYM_ELLIPSIS     = 37; // ...
 
 // symbols for bootstrapping
 
-uint64_t SYM_INT      = 35; // int
-uint64_t SYM_CHAR     = 36; // char
-uint64_t SYM_UNSIGNED = 37; // unsigned
-uint64_t SYM_CONST    = 38; // const
+uint64_t SYM_INT      = 38; // int
+uint64_t SYM_CHAR     = 39; // char
+uint64_t SYM_UNSIGNED = 40; // unsigned
+uint64_t SYM_CONST    = 41; // const
 
 uint64_t* SYMBOLS; // strings representing symbols
 
@@ -554,6 +557,9 @@ void init_scanner () {
   *(SYMBOLS + SYM_AND)          = (uint64_t) "&";
   *(SYMBOLS + SYM_OR)           = (uint64_t) "|";
   *(SYMBOLS + SYM_XORI)         = (uint64_t) "~";    
+  *(SYMBOLS + SYM_LOG_AND)      = (uint64_t) "&&";  
+  *(SYMBOLS + SYM_LOG_OR)       = (uint64_t) "||";  
+  *(SYMBOLS + SYM_LOG_NOT)      = (uint64_t) "!";  
   *(SYMBOLS + SYM_ELLIPSIS)     = (uint64_t) "...";
 
   *(SYMBOLS + SYM_INT)      = (uint64_t) "int";
@@ -4069,11 +4075,21 @@ void get_symbol() {
       } else if (character == CHAR_AND) {
         get_character();
 
-        symbol = SYM_AND;
+        if (character == CHAR_AND) {
+          get_character();
+
+          symbol = SYM_AND;
+        } else
+          symbol = SYM_LOG_AND;
       } else if (character == CHAR_OR) {
         get_character();
 
-        symbol = SYM_OR;
+        if (character == CHAR_OR) {
+          get_character();
+
+          symbol = SYM_OR;
+        } else
+          symbol = SYM_LOG_OR;
       } else if (character == CHAR_XORI) {
         get_character();
 
@@ -4090,12 +4106,12 @@ void get_symbol() {
       } else if (character == CHAR_EXCLAMATION) {
         get_character();
 
-        if (character == CHAR_EQUAL)
+        if (character == CHAR_EQUAL) {
           get_character();
-        else
-          syntax_error_expected_character(CHAR_EQUAL);
 
-        symbol = SYM_NOTEQ;
+          symbol = SYM_NOTEQ;
+        } else
+          symbol = SYM_LOG_NOT;
       } else if (character == CHAR_LT) {
         get_character();
 
@@ -4404,6 +4420,12 @@ uint64_t is_comparison() {
     return 1;
   else if (symbol == SYM_BSR)
     return 1;
+  else if (symbol == SYM_LOG_AND)
+    return 1;
+  else if (symbol == SYM_LOG_OR)
+    return 1;
+  else if (symbol == SYM_LOG_NOT)
+    return 1;
   else
     return 0;
 }
@@ -4463,12 +4485,18 @@ uint64_t is_shift() {
     return 1;
   else if (symbol == SYM_OR)
     return 1;
+  else if (symbol == SYM_LOG_AND)
+    return 1;
+  else if (symbol == SYM_LOG_OR)
+    return 1;
   else
     return 0;
 }
 
 uint64_t is_xori() {
   if (symbol == SYM_XORI)
+    return 1;
+  else if (symbol == SYM_LOG_NOT)
     return 1;
   else
     return 0;

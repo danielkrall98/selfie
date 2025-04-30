@@ -10,7 +10,7 @@ C\* is a tiny subset of the programming language C. C\* features global variable
 
 C\* Keywords: `uint64_t`, `void`, `sizeof`, `if`, `else`, `while`, `return`
 
-C\* Symbols: `integer`, `hexadecimal`, `character`, `string`, `identifier`, `,`, `;`, `(`, `)`, `{`, `}`, `+`, `-`, `*`, `/`, `%`, `=`, `==`, `!=`, `<`, `>`, `<=`, `>=`, `<<`, `>>`, `&`, `|`, `~`, `...`
+C\* Symbols: `integer`, `hexadecimal`, `character`, `string`, `identifier`, `,`, `;`, `(`, `)`, `{`, `}`, `+`, `-`, `*`, `/`, `%`, `=`, `==`, `!=`, `<`, `>`, `<=`, `>=`, `<<`, `>>`, `&`, `|`, `~`, `&&`, `||`, `!`, `...`
 
 with:
 
@@ -55,7 +55,7 @@ statement  = assignment ";" | if | while | call ";" | return ";" .
 
 assignment = ( [ "*" ] identifier | "*" "(" expression ")" ) "=" expression .
 
-expression = arithmetic [ ( "==" | "!=" | "<" | ">" | "<=" | ">=" | "<<" | ">>" | "&" | "|" | "~" ) arithmetic ] .
+expression = arithmetic [ ( "==" | "!=" | "<" | ">" | "<=" | ">=" | "<<" | ">>" | "&" | "|" | "~" | "&&" | "||" | "!" ) arithmetic ] .
 
 arithmetic = term { ( "+" | "-" ) term } .
 
