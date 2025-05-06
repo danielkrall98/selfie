@@ -476,14 +476,15 @@ uint64_t SYM_XORI         = 33; // ~
 uint64_t SYM_LOG_AND      = 34; // &&
 uint64_t SYM_LOG_OR       = 35; // ||
 uint64_t SYM_LOG_NOT      = 36; // !
-uint64_t SYM_ELLIPSIS     = 37; // ...
+uint64_t SYM_FOR          = 37; // for
+uint64_t SYM_ELLIPSIS     = 38; // ...
 
 // symbols for bootstrapping
 
-uint64_t SYM_INT      = 38; // int
-uint64_t SYM_CHAR     = 39; // char
-uint64_t SYM_UNSIGNED = 40; // unsigned
-uint64_t SYM_CONST    = 41; // const
+uint64_t SYM_INT      = 39; // int
+uint64_t SYM_CHAR     = 40; // char
+uint64_t SYM_UNSIGNED = 41; // unsigned
+uint64_t SYM_CONST    = 42; // const
 
 uint64_t* SYMBOLS; // strings representing symbols
 
@@ -561,6 +562,7 @@ void init_scanner () {
   *(SYMBOLS + SYM_LOG_OR)       = (uint64_t) "||";  
   *(SYMBOLS + SYM_LOG_NOT)      = (uint64_t) "!";  
   *(SYMBOLS + SYM_ELLIPSIS)     = (uint64_t) "...";
+  *(SYMBOLS + SYM_FOR)          = (uint64_t) "for";
 
   *(SYMBOLS + SYM_INT)      = (uint64_t) "int";
   *(SYMBOLS + SYM_CHAR)     = (uint64_t) "char";
@@ -761,6 +763,7 @@ uint64_t compile_literal(); // returns type
 
 void compile_if();
 void compile_while();
+void compile_for_loop();
 
 char*    bootstrap_non_0_boot_level_procedures(char* procedure);
 uint64_t is_boot_level_0_only_procedure(char* procedure);
@@ -795,6 +798,7 @@ uint64_t number_of_string_literals  = 0;
 
 uint64_t number_of_assignments = 0;
 uint64_t number_of_while       = 0;
+uint64_t number_of_for         = 0;
 uint64_t number_of_if          = 0;
 uint64_t number_of_calls       = 0;
 uint64_t number_of_return      = 0;
@@ -809,6 +813,7 @@ void reset_parser() {
   number_of_assignments = 0;
   number_of_while       = 0;
   number_of_if          = 0;
+  number_of_for         = 0;
   number_of_calls       = 0;
   number_of_return      = 0;
 
@@ -3850,6 +3855,8 @@ uint64_t identifier_or_keyword() {
     return SYM_RETURN;
   else if (identifier_string_match(SYM_WHILE))
     return SYM_WHILE;
+  else if (identifier_string_match(SYM_FOR))
+    return SYM_FOR;
   else if (identifier_string_match(SYM_SIZEOF))
     return SYM_SIZEOF;
   else if (identifier_string_match(SYM_INT))
@@ -4539,6 +4546,8 @@ uint64_t is_not_statement() {
     return 0;
   else if (symbol == SYM_WHILE)
     return 0;
+  else if (symbol == SYM_FOR)
+    return 0;
   else if (symbol == SYM_RETURN)
     return 0;
   else if (symbol == SYM_EOF)
@@ -4871,6 +4880,8 @@ void compile_statement() {
     compile_if();
   else if (symbol == SYM_WHILE)
     compile_while();
+  else if (symbol == SYM_FOR)
+    compile_for_loop();
   else if (symbol == SYM_RETURN) {
     compile_return();
 
@@ -5766,6 +5777,106 @@ void compile_while() {
   // assert: allocated_temporaries == 0
 
   number_of_while = number_of_while + 1;
+}
+
+void compile_for_loop() {
+  uint64_t jump_back_to_for;
+  uint64_t jump_back_to_loop;
+  uint64_t jump_to_body;
+  uint64_t branch_forward_to_end;
+
+  uint64_t* entry;
+
+  // assert: allocated_temporaries == 0
+
+  jump_back_to_for = code_size;
+  jump_back_to_loop = code_size;
+  jump_to_body = 0;
+  branch_forward_to_end = 0;
+
+  if (symbol == SYM_FOR) {
+    get_symbol();
+
+    if (symbol == SYM_LPARENTHESIS) {
+      get_symbol();
+
+      compile_statement();
+
+      jump_back_to_loop = code_size;
+
+      compile_expression();
+
+      // if the "for" condition is false
+      // we skip the "for" body by branching to the end
+      branch_forward_to_end = code_size;
+
+      // the target address is still unknown, using 0 for now
+      emit_beq(current_temporary(), REG_ZR, 0);
+
+      jump_to_body = code_size;
+      emit_jal(REG_ZR, 0);
+
+      jump_back_to_for = code_size;
+
+      tfree(1);
+
+      if (symbol == SYM_SEMICOLON) {
+        get_symbol();
+
+        entry = get_scoped_symbol_table_entry(identifier);
+
+        get_symbol();
+
+        if (symbol == SYM_ASSIGN) {
+          get_symbol();
+
+          compile_expression();
+
+          emit_store(get_scope(entry), get_address(entry), current_temporary());
+
+          emit_jal(REG_ZR, jump_back_to_loop - code_size);
+
+          // if the "for" condition is true
+          // we jump to the "for" body
+          fixup_JFormat(jump_to_body, code_size);
+
+          if (symbol == SYM_RPARENTHESIS) {
+            get_symbol();
+
+            if (symbol == SYM_LBRACE) {
+              get_symbol();
+
+              while (is_neither_rbrace_nor_eof())
+                // assert: allocated_temporaries == 0
+                compile_statement();
+
+              get_required_symbol(SYM_RBRACE);
+            } else
+              compile_statement();
+          } else
+            syntax_error_expected_symbol(SYM_RPARENTHESIS);
+        } else
+          syntax_error_expected_symbol(SYM_ASSIGN);
+      } else
+        syntax_error_expected_symbol(SYM_SEMICOLON);
+    } else 
+      syntax_error_expected_symbol(SYM_LPARENTHESIS);
+  } else 
+    syntax_error_expected_symbol(SYM_FOR);
+
+  // we use JAL for the unconditional jump back to the loop condition because:
+  // 1. the RISC-V doc recommends to do so to not disturb branch prediction
+  // 2. GCC also uses JAL for the unconditional back jump of a while loop
+  emit_jal(REG_ZR, jump_back_to_for - code_size);
+
+  if (branch_forward_to_end != 0)
+    // first instruction after loop body will be generated here
+    // now we have the address for the conditional branch from above
+    fixup_BFormat(branch_forward_to_end);
+
+  // assert: allocated_temporaries == 0
+
+  number_of_for = number_of_for + 1;
 }
 
 char* bootstrap_non_0_boot_level_procedures(char* procedure) {
