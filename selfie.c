@@ -22,7 +22,7 @@ Selfie is a self-contained 64-bit, 12KLOC C implementation of:
 1. a self-compiling compiler called starc that compiles
    a tiny but still fast subset of C called C Star (C*) to
    a tiny and easy-to-teach subset of RISC-V called RISC-U,
-2. a self-executing emulator called mipster that executes
+2. a self-executing emulator called mipster that executes 
    RISC-U code including itself when compiled with starc,
 3. a self-hosting hypervisor called hypster that provides
    RISC-U virtual machines that can host all of selfie,
@@ -418,6 +418,8 @@ char CHAR_COMMA        = ',';
 char CHAR_SEMICOLON    = ';';
 char CHAR_LPARENTHESIS = '(';
 char CHAR_RPARENTHESIS = ')';
+char CHAR_LBRACKET     = '[';
+char CHAR_RBRACKET     = ']';
 char CHAR_LBRACE       = '{';
 char CHAR_RBRACE       = '}';
 char CHAR_PLUS         = '+';
@@ -477,14 +479,16 @@ uint64_t SYM_LOG_AND      = 34; // &&
 uint64_t SYM_LOG_OR       = 35; // ||
 uint64_t SYM_LOG_NOT      = 36; // !
 uint64_t SYM_FOR          = 37; // for
-uint64_t SYM_ELLIPSIS     = 38; // ...
+uint64_t SYM_LBRACKET     = 38; // [
+uint64_t SYM_RBRACKET     = 39; // ]
+uint64_t SYM_ELLIPSIS     = 40; // ...
 
 // symbols for bootstrapping
 
-uint64_t SYM_INT      = 39; // int
-uint64_t SYM_CHAR     = 40; // char
-uint64_t SYM_UNSIGNED = 41; // unsigned
-uint64_t SYM_CONST    = 42; // const
+uint64_t SYM_INT      = 41; // int
+uint64_t SYM_CHAR     = 42; // char
+uint64_t SYM_UNSIGNED = 43; // unsigned
+uint64_t SYM_CONST    = 44; // const
 
 uint64_t* SYMBOLS; // strings representing symbols
 
@@ -539,6 +543,8 @@ void init_scanner () {
   *(SYMBOLS + SYM_SEMICOLON)    = (uint64_t) ";";
   *(SYMBOLS + SYM_LPARENTHESIS) = (uint64_t) "(";
   *(SYMBOLS + SYM_RPARENTHESIS) = (uint64_t) ")";
+  *(SYMBOLS + SYM_LBRACKET)     = (uint64_t) "[";
+  *(SYMBOLS + SYM_RBRACKET)     = (uint64_t) "]";
   *(SYMBOLS + SYM_LBRACE)       = (uint64_t) "{";
   *(SYMBOLS + SYM_RBRACE)       = (uint64_t) "}";
   *(SYMBOLS + SYM_PLUS)         = (uint64_t) "+";
@@ -597,14 +603,14 @@ void reset_scanner() {
 // | 1 | string  | identifier string, big integer as string, string literal
 // | 2 | line#   | source line number
 // | 3 | class   | VARIABLE, BIGINT, STRING, PROCEDURE, MACRO
-// | 4 | type    | UINT64_T, UINT64STAR_T, VOID_T, UNDECLARED_T
+// | 4 | type    | UINT64_T, UINT64STAR_T, VOID_T, UNDECLARED_T, ARRAY_T
 // | 5 | value   | VARIABLE: initial value, PROCEDURE: number of formal parameters
 // | 6 | address | VARIABLE, BIGINT, STRING: offset, PROCEDURE: address
 // | 7 | scope   | REG_GP (global), REG_S0 (local)
 // +---+---------+
 
 uint64_t* allocate_symbol_table_entry() {
-  return smalloc(2 * sizeof(uint64_t*) + 6 * sizeof(uint64_t));
+  return smalloc(2 * sizeof(uint64_t*) + 7 * sizeof(uint64_t));
 }
 
 uint64_t* get_next_entry(uint64_t* entry)  { return (uint64_t*) *entry; }
@@ -615,6 +621,7 @@ uint64_t  get_type(uint64_t* entry)        { return             *(entry + 4); }
 uint64_t  get_value(uint64_t* entry)       { return             *(entry + 5); }
 uint64_t  get_address(uint64_t* entry)     { return             *(entry + 6); }
 uint64_t  get_scope(uint64_t* entry)       { return             *(entry + 7); }
+uint64_t  get_length(uint64_t* entry)      { return             *(entry + 8); }
 
 void set_next_entry(uint64_t* entry, uint64_t* next) { *entry       = (uint64_t) next; }
 void set_string(uint64_t* entry, char* identifier)   { *(entry + 1) = (uint64_t) identifier; }
@@ -624,6 +631,7 @@ void set_type(uint64_t* entry, uint64_t type)        { *(entry + 4) = type; }
 void set_value(uint64_t* entry, uint64_t value)      { *(entry + 5) = value; }
 void set_address(uint64_t* entry, uint64_t address)  { *(entry + 6) = address; }
 void set_scope(uint64_t* entry, uint64_t scope)      { *(entry + 7) = scope; }
+void set_length(uint64_t* entry, uint64_t length)    { *(entry + 8) = length; }
 
 uint64_t hash(uint64_t* key);
 
@@ -652,6 +660,7 @@ uint64_t UINT64_T     = 1;
 uint64_t UINT64STAR_T = 2;
 uint64_t VOID_T       = 3;
 uint64_t UNDECLARED_T = 4;
+uint64_t ARRAY_T      = 5;
 
 // symbol tables
 uint64_t GLOBAL_TABLE = 1;
@@ -4055,6 +4064,14 @@ void get_symbol() {
         get_character();
 
         symbol = SYM_RPARENTHESIS;
+      } else if (character == CHAR_LBRACKET) {
+        get_character();
+
+        symbol = SYM_LBRACKET;
+      } else if (character == CHAR_RBRACKET) {
+        get_character();
+
+        symbol = SYM_RBRACKET;
       } else if (character == CHAR_LBRACE) {
         get_character();
 
@@ -4662,6 +4679,15 @@ void compile_cstar() {
         get_symbol();
 
         if (symbol != SYM_LPARENTHESIS) {
+          if (symbol == SYM_LBRACKET) {
+            get_symbol();
+
+            compile_value();
+            if (symbol == SYM_RBRACKET) {
+              get_symbol();
+            }
+          }
+
           // type identifier [ initialize ] ";"
           // global variable declaration or definition
           entry = compile_variable(variable_or_procedure, type, 0);
