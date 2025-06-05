@@ -481,14 +481,15 @@ uint64_t SYM_LOG_NOT      = 36; // !
 uint64_t SYM_FOR          = 37; // for
 uint64_t SYM_LBRACKET     = 38; // [
 uint64_t SYM_RBRACKET     = 39; // ]
-uint64_t SYM_ELLIPSIS     = 40; // ...
+uint64_t SYM_STRUCT       = 40; // struct
+uint64_t SYM_ELLIPSIS     = 41; // ...
 
 // symbols for bootstrapping
 
-uint64_t SYM_INT      = 41; // int
-uint64_t SYM_CHAR     = 42; // char
-uint64_t SYM_UNSIGNED = 43; // unsigned
-uint64_t SYM_CONST    = 44; // const
+uint64_t SYM_INT      = 42; // int
+uint64_t SYM_CHAR     = 43; // char
+uint64_t SYM_UNSIGNED = 44; // unsigned
+uint64_t SYM_CONST    = 45; // const
 
 uint64_t* SYMBOLS; // strings representing symbols
 
@@ -569,6 +570,7 @@ void init_scanner () {
   *(SYMBOLS + SYM_LOG_NOT)      = (uint64_t) "!";  
   *(SYMBOLS + SYM_ELLIPSIS)     = (uint64_t) "...";
   *(SYMBOLS + SYM_FOR)          = (uint64_t) "for";
+  *(SYMBOLS + SYM_STRUCT)       = (uint64_t) "struct";
 
   *(SYMBOLS + SYM_INT)      = (uint64_t) "int";
   *(SYMBOLS + SYM_CHAR)     = (uint64_t) "char";
@@ -675,6 +677,7 @@ uint64_t HASH_TABLE_SIZE = 1024;
 
 uint64_t* global_symbol_table = (uint64_t*) 0;
 uint64_t* local_symbol_table  = (uint64_t*) 0;
+uint64_t* struct_symbol_table = (uint64_t*) 0;
 
 uint64_t number_of_symbol_lookups  = 0;
 uint64_t number_of_list_iterations = 0;
@@ -684,6 +687,7 @@ uint64_t number_of_list_iterations = 0;
 void reset_symbol_tables() {
   global_symbol_table = (uint64_t*) zmalloc(HASH_TABLE_SIZE * sizeof(uint64_t*));
   local_symbol_table  = (uint64_t*) 0;
+  struct_symbol_table = (uint64_t*) 0;
 
   number_of_symbol_lookups  = 0;
   number_of_list_iterations = 0;
@@ -713,11 +717,12 @@ uint64_t is_factor();
 uint64_t is_literal();
 uint64_t is_shift();
 uint64_t is_xori();
+uint64_t is_struct();
 
 uint64_t is_neither_rbrace_nor_eof();
 uint64_t is_possibly_parameter(uint64_t is_already_variadic);
 
-uint64_t is_neither_type_nor_void();
+uint64_t is_not_type_void_struct();
 uint64_t is_not_statement();
 uint64_t is_not_factor();
 
@@ -3868,6 +3873,8 @@ uint64_t identifier_or_keyword() {
     return SYM_FOR;
   else if (identifier_string_match(SYM_SIZEOF))
     return SYM_SIZEOF;
+  else if (identifier_string_match(SYM_STRUCT))
+    return SYM_STRUCT;
   else if (identifier_string_match(SYM_INT))
     // selfie bootstraps int to uint64_t!
     return SYM_UINT64;
@@ -4526,6 +4533,13 @@ uint64_t is_xori() {
     return 0;
 }
 
+uint64_t is_struct() {
+  if (symbol == SYM_STRUCT)
+    return 1;
+  else 
+    return 0;
+}
+
 uint64_t is_neither_rbrace_nor_eof() {
   if (symbol == SYM_RBRACE)
     return 0;
@@ -4543,12 +4557,14 @@ uint64_t is_possibly_parameter(uint64_t is_already_variadic) {
   return 0;
 }
 
-uint64_t is_neither_type_nor_void() {
+uint64_t is_not_type_void_struct() {
   if (is_type())
     return 0;
   else if (symbol == SYM_VOID)
     return 0;
   else if (symbol == SYM_EOF)
+    return 0;
+  else if (symbol == SYM_STRUCT)
     return 0;
   else
     return 1;
@@ -4661,7 +4677,7 @@ void compile_cstar() {
 
   while (symbol != SYM_EOF) {
     // synchronizing on strong symbols in case of syntax errors
-    while (is_neither_type_nor_void()) {
+    while (is_not_type_void_struct()) {
       syntax_error_unexpected_symbol();
 
       if (symbol == SYM_EOF)
@@ -4727,6 +4743,23 @@ void compile_cstar() {
         compile_procedure(variable_or_procedure, type);
       } else
         syntax_error_expected_symbol(SYM_IDENTIFIER);
+    } else if (symbol == SYM_STRUCT) {
+      get_symbol();
+
+      if (symbol == SYM_IDENTIFIER) {
+        get_symbol();
+
+        if (symbol == SYM_LBRACE) {
+          get_symbol();
+
+          if (symbol == SYM_RBRACE) {
+            get_symbol();
+          }
+          if (symbol == SYM_SEMICOLON) {
+            get_symbol();
+          }
+        }
+      }
     } else
       syntax_error_unexpected_symbol();
   }
