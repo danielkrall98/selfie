@@ -1,3 +1,4 @@
+// A10 not implemented
 /*
 Copyright (c) the Selfie Project authors. All rights reserved.
 Please see the AUTHORS file for details. Use of this source code is
